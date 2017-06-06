@@ -746,7 +746,8 @@ getArchitecture(uint16_t *pCPU, uint16_t *pBits, UBool *pIsBigEndian, const char
     *pIsBigEndian=(UBool)(buffer.header32.e_ident[EI_DATA]==ELFDATA2MSB);
     if(*pIsBigEndian!=U_IS_BIG_ENDIAN) {
         fprintf(stderr, "genccode: currently only same-endianness ELF formats are supported\n");
-        exit(U_UNSUPPORTED_ERROR);
+        /* XXXAR: If the resulting code is ever used it will break everything, but for now we just want to be able to build ICU */
+        /* exit(U_UNSUPPORTED_ERROR); */
     }
     /* TODO: Support byte swapping */
 
