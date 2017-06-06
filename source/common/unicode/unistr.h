@@ -109,10 +109,19 @@ class UnicodeStringAppendable;  // unicode/appendable.h
  * <code>NUL</code>, must be specified as a constant.
  * @stable ICU 2.0
  */
+
+/*
+ * XXXAR: Seems like CHERI clang is stricter than clang-4.0 x86
+ * error: pasting formed 'u"""(STD)"', an invalid preprocessing token
+ * Easy workaround: use the macros that Qt uses:
+ */
+#define _UNICODE_LITERAL_II(str) u"" str
+#define _UNICODE_LITERAL(str) _UNICODE_LITERAL_II(str)
+
 #if !U_CHAR16_IS_TYPEDEF
-# define UNICODE_STRING(cs, _length) icu::UnicodeString(TRUE, u ## cs, _length)
+# define UNICODE_STRING(cs, _length) icu::UnicodeString(TRUE, _UNICODE_LITERAL(cs), _length)
 #else
-# define UNICODE_STRING(cs, _length) icu::UnicodeString(TRUE, (const char16_t*)u ## cs, _length)
+# define UNICODE_STRING(cs, _length) icu::UnicodeString(TRUE, (const char16_t*)_UNICODE_LITERAL(cs), _length)
 #endif
 
 /**
