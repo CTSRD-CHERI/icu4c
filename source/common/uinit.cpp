@@ -68,7 +68,11 @@ U_NAMESPACE_USE
  */
 U_CAPI void U_EXPORT2
 u_init(UErrorCode *status) {
+// XXXAR: for some reason this breaks the cross build
+// TODO: fix properly
+#if 0
     UTRACE_ENTRY_OC(UTRACE_U_INIT);
     umtx_initOnce(gICUInitOnce, &initData, *status);
     UTRACE_EXIT_STATUS(*status);
+#endif
 }
