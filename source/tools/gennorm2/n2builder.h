@@ -77,21 +77,21 @@ private:
      * (especially for a "YesNo" which has a round-trip mapping).
      * This flag is used in Normalizer2Impl::hasCompBoundaryAfter().
      *
-     * Modifies the buffer (partially composes it).
-     *
      * A starter character with a mapping does not have a composition boundary after it
      * if the character itself combines-forward (which is tested by the caller of this function),
      * or it is deleted (mapped to the empty string),
      * or its mapping contains no starter,
      * or the last starter combines-forward.
      */
-    UBool hasNoCompBoundaryAfter(BuilderReorderingBuffer &buffer);
-    void setHangulData();
+    UBool hasNoCompBoundaryAfter(const BuilderReorderingBuffer &buffer);
+    void postProcess(Norm &norm);
 
+    void setSmallFCD(UChar32 c);
     int32_t getCenterNoNoDelta() {
         return indexes[Normalizer2Impl::IX_MIN_MAYBE_YES]-Normalizer2Impl::MAX_DELTA-1;
     }
     void writeNorm16(UChar32 start, UChar32 end, Norm &norm);
+    void setHangulData();
     void processData();
 
     Norms norms;

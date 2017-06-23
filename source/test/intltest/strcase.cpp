@@ -19,6 +19,7 @@
 */
 
 #include "unicode/std_string.h"
+#include "unicode/brkiter.h"
 #include "unicode/casemap.h"
 #include "unicode/edits.h"
 #include "unicode/uchar.h"
@@ -49,6 +50,7 @@ public:
                         int32_t whichCase,
                         void *iter, const char *localeID, uint32_t options);
     void TestCasing();
+    void TestTitleOptions();
     void TestFullCaseFoldingIterator();
     void TestGreekUpper();
     void TestLongUpper();
@@ -84,6 +86,7 @@ StringCaseTest::runIndexedTest(int32_t index, UBool exec, const char *&name, cha
     TESTCASE_AUTO(TestCaseConversion);
 #if !UCONFIG_NO_BREAK_ITERATION && !UCONFIG_NO_FILE_IO && !UCONFIG_NO_LEGACY_CONVERSION
     TESTCASE_AUTO(TestCasing);
+    TESTCASE_AUTO(TestTitleOptions);
 #endif
     TESTCASE_AUTO(TestFullCaseFoldingIterator);
     TESTCASE_AUTO(TestGreekUpper);
@@ -594,6 +597,59 @@ StringCaseTest::TestCasing() {
 }
 
 void
+StringCaseTest::TestTitleOptions() {
+    // New options in ICU 60.
+    TestCasingImpl(u"ʻcAt! ʻeTc.", u"ʻCat! ʻetc.", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING);
+    TestCasingImpl(u"a ʻCaT. A ʻdOg! ʻeTc.", u"A ʻCaT. A ʻdOg! ʻETc.", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_SENTENCES|U_TITLECASE_NO_LOWERCASE);
+    TestCasingImpl(u"49eRs", u"49ers", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING);
+    TestCasingImpl(u"«丰(aBc)»", u"«丰(abc)»", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING);
+    TestCasingImpl(u"49eRs", u"49Ers", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING|U_TITLECASE_ADJUST_TO_CASED);
+    TestCasingImpl(u"«丰(aBc)»", u"«丰(Abc)»", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING|U_TITLECASE_ADJUST_TO_CASED);
+    TestCasingImpl(u" john. Smith", u" John. Smith", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING|U_TITLECASE_NO_LOWERCASE);
+    TestCasingImpl(u" john. Smith", u" john. smith", TEST_TITLE,
+                   nullptr, "", U_TITLECASE_WHOLE_STRING|U_TITLECASE_NO_BREAK_ADJUSTMENT);
+    TestCasingImpl(u"«ijs»", u"«IJs»", TEST_TITLE,
+                   nullptr, "nl-BE", U_TITLECASE_WHOLE_STRING);
+    TestCasingImpl(u"«ijs»", u"«İjs»", TEST_TITLE,
+                   nullptr, "tr-DE", U_TITLECASE_WHOLE_STRING);
+
+    // Test conflicting settings.
+    // If & when we add more options, then the ORed combinations may become
+    // indistinguishable from valid values.
+    IcuTestErrorCode errorCode(*this, "TestTitleOptions");
+    CaseMap::toTitle("", U_TITLECASE_NO_BREAK_ADJUSTMENT|U_TITLECASE_ADJUST_TO_CASED, nullptr,
+                     u"", 0, nullptr, 0, nullptr, errorCode);
+    if (errorCode.get() != U_ILLEGAL_ARGUMENT_ERROR) {
+        errln("CaseMap::toTitle(multiple adjustment options) -> %s not illegal argument",
+              errorCode.errorName());
+    }
+    errorCode.reset();
+    CaseMap::toTitle("", U_TITLECASE_WHOLE_STRING|U_TITLECASE_SENTENCES, nullptr,
+                     u"", 0, nullptr, 0, nullptr, errorCode);
+    if (errorCode.get() != U_ILLEGAL_ARGUMENT_ERROR) {
+        errln("CaseMap::toTitle(multiple iterator options) -> %s not illegal argument",
+              errorCode.errorName());
+    }
+    errorCode.reset();
+    LocalPointer<BreakIterator> iter(
+        BreakIterator::createCharacterInstance(Locale::getRoot(), errorCode));
+    CaseMap::toTitle("", U_TITLECASE_WHOLE_STRING, iter.getAlias(),
+                     u"", 0, nullptr, 0, nullptr, errorCode);
+    if (errorCode.get() != U_ILLEGAL_ARGUMENT_ERROR) {
+        errln("CaseMap::toTitle(iterator option + iterator) -> %s not illegal argument",
+              errorCode.errorName());
+    }
+    errorCode.reset();
+}
+
+void
 StringCaseTest::TestFullCaseFoldingIterator() {
     UnicodeString ffi=UNICODE_STRING_SIMPLE("ffi");
     UnicodeString ss=UNICODE_STRING_SIMPLE("ss");
@@ -911,7 +967,7 @@ void StringCaseTest::TestCaseMapWithEdits() {
     UChar dest[20];
     Edits edits;
 
-    int32_t length = CaseMap::toLower("tr", UCASEMAP_OMIT_UNCHANGED_TEXT,
+    int32_t length = CaseMap::toLower("tr", U_OMIT_UNCHANGED_TEXT,
                                       u"IstanBul", 8, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"toLower(IstanBul)", UnicodeString(u"ıb"), UnicodeString(TRUE, dest, length));
     static const EditChange lowerExpectedChanges[] = {
@@ -926,7 +982,7 @@ void StringCaseTest::TestCaseMapWithEdits() {
             TRUE, errorCode);
 
     edits.reset();
-    length = CaseMap::toUpper("el", UCASEMAP_OMIT_UNCHANGED_TEXT,
+    length = CaseMap::toUpper("el", U_OMIT_UNCHANGED_TEXT,
                               u"Πατάτα", 6, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"toUpper(Πατάτα)", UnicodeString(u"ΑΤΑΤΑ"), UnicodeString(TRUE, dest, length));
     static const EditChange upperExpectedChanges[] = {
@@ -946,7 +1002,7 @@ void StringCaseTest::TestCaseMapWithEdits() {
 
 #if !UCONFIG_NO_BREAK_ITERATION
     length = CaseMap::toTitle("nl",
-                              UCASEMAP_OMIT_UNCHANGED_TEXT |
+                              U_OMIT_UNCHANGED_TEXT |
                               U_TITLECASE_NO_BREAK_ADJUSTMENT |
                               U_TITLECASE_NO_LOWERCASE,
                               NULL, u"IjssEL IglOo", 12,
@@ -964,7 +1020,7 @@ void StringCaseTest::TestCaseMapWithEdits() {
 #endif
 
     edits.reset();
-    length = CaseMap::fold(UCASEMAP_OMIT_UNCHANGED_TEXT | U_FOLD_CASE_EXCLUDE_SPECIAL_I,
+    length = CaseMap::fold(U_OMIT_UNCHANGED_TEXT | U_FOLD_CASE_EXCLUDE_SPECIAL_I,
                            u"IßtanBul", 8, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"foldCase(IßtanBul)", UnicodeString(u"ıssb"), UnicodeString(TRUE, dest, length));
     static const EditChange foldExpectedChanges[] = {
@@ -985,7 +1041,7 @@ void StringCaseTest::TestCaseMapUTF8WithEdits() {
     char dest[50];
     Edits edits;
 
-    int32_t length = CaseMap::utf8ToLower("tr", UCASEMAP_OMIT_UNCHANGED_TEXT,
+    int32_t length = CaseMap::utf8ToLower("tr", U_OMIT_UNCHANGED_TEXT,
                                           u8"IstanBul", 8, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"toLower(IstanBul)", UnicodeString(u"ıb"),
                  UnicodeString::fromUTF8(StringPiece(dest, length)));
@@ -1001,7 +1057,7 @@ void StringCaseTest::TestCaseMapUTF8WithEdits() {
             TRUE, errorCode);
 
     edits.reset();
-    length = CaseMap::utf8ToUpper("el", UCASEMAP_OMIT_UNCHANGED_TEXT,
+    length = CaseMap::utf8ToUpper("el", U_OMIT_UNCHANGED_TEXT,
                                   u8"Πατάτα", 6 * 2, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"toUpper(Πατάτα)", UnicodeString(u"ΑΤΑΤΑ"),
                  UnicodeString::fromUTF8(StringPiece(dest, length)));
@@ -1021,7 +1077,7 @@ void StringCaseTest::TestCaseMapUTF8WithEdits() {
     edits.reset();
 #if !UCONFIG_NO_BREAK_ITERATION
     length = CaseMap::utf8ToTitle("nl",
-                                  UCASEMAP_OMIT_UNCHANGED_TEXT |
+                                  U_OMIT_UNCHANGED_TEXT |
                                   U_TITLECASE_NO_BREAK_ADJUSTMENT |
                                   U_TITLECASE_NO_LOWERCASE,
                                   NULL, u8"IjssEL IglOo", 12,
@@ -1040,7 +1096,7 @@ void StringCaseTest::TestCaseMapUTF8WithEdits() {
 #endif
 
     edits.reset();
-    length = CaseMap::utf8Fold(UCASEMAP_OMIT_UNCHANGED_TEXT | U_FOLD_CASE_EXCLUDE_SPECIAL_I,
+    length = CaseMap::utf8Fold(U_OMIT_UNCHANGED_TEXT | U_FOLD_CASE_EXCLUDE_SPECIAL_I,
                                u8"IßtanBul", 1 + 2 + 6, dest, UPRV_LENGTHOF(dest), &edits, errorCode);
     assertEquals(u"foldCase(IßtanBul)", UnicodeString(u"ıssb"),
                  UnicodeString::fromUTF8(StringPiece(dest, length)));
