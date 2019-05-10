@@ -64,7 +64,13 @@
 # if U_PLATFORM_USES_ONLY_WIN32_API || U_PLATFORM == U_PF_CYGWIN
 #   include <locale.h>
 # else
-#   include <xlocale.h>
+#  ifdef __GLIBC__
+#   if __GLIBC_PREREQ(2,24)
+#    include <locale.h>
+#   else
+#    include <xlocale.h>
+#   endif
+#  endif
 # endif
 #endif
 
