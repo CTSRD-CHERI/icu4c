@@ -69,8 +69,10 @@
 #    include <locale.h>
 #   else
 #    include <xlocale.h>
-#   endif
-#  endif
+#   endif /* __GLIBC_PREREQ */
+#  else
+#   include <xlocale.h>
+#  endif /* __GLIBC__ */
 # endif
 #endif
 
